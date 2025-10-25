@@ -11,9 +11,10 @@ from tavily import TavilyClient
 #Make sure .env file exists
 load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
+tavely_api_key = os.getenv("TAVILY_API_KEY")
 
-if not groq_api_key:
-    st.error("⚠️ Please add your GROQ_API_KEY to a .env file.")
+if not groq_api_key or not tavely_api_key:
+    st.error("⚠️ Please add your API keys to a .env file.")
     st.stop()
 
 #Home Page for Chatbot
@@ -28,20 +29,20 @@ llm = ChatGroq(model = "openai/gpt-oss-120b",temperature = 0.7,api_key=groq_api_
 memory = InMemoryChatMessageHistory()
 
 #Web search client
-search_client = TavilyClient()
+search_client = TavilyClient(api_key=tavely_api_key)
 
 #Creating Prompt Template
 prompt = ChatPromptTemplate.from_messages([
-    ("system","You are a helpful AI assistant. Please respond back with proper answer, If you do not know the answer, respond with 'I don't know' sentence as response."),
+    ("system","You are a helpful AI assistant. If you don't know the answer or response, say 'I don't know."),
     MessagesPlaceholder(variable_name = "chat_history"),
     ("human","{input}")
 ])
 
 
 
-# Session management
-if "session_id" not in st.session_state:
-    st.session_state.session_id = "default"
+# ChatHistory Session
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
 # Chat input
 user_input = st.chat_input("Type your message here...")
@@ -51,7 +52,7 @@ def ask_with_web_fallback(question: str) -> str:
     # Fill the prompt with user input and chat history
     formatted_prompt = prompt.format(
         input=question,
-        chat_history=memory.messages  # list of HumanMessage/AIMessage
+        chat_history=st.session_state.chat_history  # list of HumanMessage/AIMessage
     )
     print(formatted_prompt)
     # Invoke LLM with the fully formatted string
@@ -77,8 +78,8 @@ def ask_with_web_fallback(question: str) -> str:
         answer_text = final_response.content if hasattr(final_response, "content") else str(final_response)
 
     # Update chat memory
-    memory.add_message(HumanMessage(content=question))
-    memory.add_message(AIMessage(content=answer_text))
+    st.session_state.chat_history.append(HumanMessage(content=question))
+    st.session_state.chat_history.append(AIMessage(content=answer_text))
 
     return answer_text
 
@@ -91,7 +92,7 @@ if user_input:
 
 # Optional: show full conversation
 with st.expander("💬 Conversation History"):
-    for msg in memory.messages:
+    for msg in st.session_state.chat_history:
         if isinstance(msg, HumanMessage):
             st.markdown(f"**🧑 You:** {msg.content}")
         elif isinstance(msg, AIMessage):

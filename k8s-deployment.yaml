@@ -1,0 +1,61 @@
+# k8s-deployment.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: groq-chatbot
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: groq-chatbot
+  namespace: groq-chatbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: groq-chatbot
+  template:
+    metadata:
+      labels:
+        app: groq-chatbot
+    spec:
+      containers:
+        - name: groq-chatbot
+          image: groq-llm-chatbot-test:latest           # the local image tag you built
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8501
+          env:
+            # load envs from the secret; keys will be available as env vars
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: groq-tavily-keys
+                  key: GROQ_API_KEY
+            - name: TAVILY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: groq-tavily-keys
+                  key: TAVILY_API_KEY
+          # Optional: mount a hostPath to persist chat history (development only)
+          volumeMounts:
+            - name: chat-data
+              mountPath: /app/data
+      volumes:
+        - name: chat-data
+          emptyDir: {}   # for ephemeral; replace with hostPath or PVC for persistence
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: groq-chatbot-svc
+  namespace: groq-chatbot
+spec:
+  type: NodePort
+  selector:
+    app: groq-chatbot
+  ports:
+    - port: 8501
+      targetPort: 8501
+      nodePort: 30081
