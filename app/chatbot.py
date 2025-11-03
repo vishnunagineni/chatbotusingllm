@@ -10,12 +10,22 @@ from tavily import TavilyClient
 
 #Make sure .env file exists
 load_dotenv()
+
+
 groq_api_key = os.getenv("GROQ_API_KEY")
 tavely_api_key = os.getenv("TAVILY_API_KEY")
 
 if not groq_api_key or not tavely_api_key:
-    st.error("⚠️ Please add your API keys to a .env file.")
-    st.stop()
+    st.warning("GROQ_API_KEY and TAVELY_API_KEY not found. Please add .env file or enter your API key below.")
+    groq_key = st.text_input("Enter GROQ API Key:", type="password")
+    tavely_key = st.text_input("Enter TAVILY API Key:", type="password")
+    if st.button("Save Keys"):
+        os.environ["GROQ_API_KEY"] = groq_key
+        os.environ["TAVILY_API_KEY"] = tavely_key
+        st.session_state["groq_api_key"] = groq_key
+        st.session_state["tavely_api_key"] = tavely_key
+        st.success("✅ Key saved for this session.")
+        st.rerun()
 
 #Home Page for Chatbot
 st.set_page_config(page_title="Groq Chatbot with Web Search", page_icon="🤖", layout="centered")
